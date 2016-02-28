@@ -2,10 +2,10 @@ import pika
 import json
 import os
 
-from smtplib import SMTP
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from jinja2 import Environment, PackageLoader, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader
+
+from EmailSender import EmailSender
+from Email import Email
 
 connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
 
@@ -17,37 +17,16 @@ queue_name = 'email'
 print(' [*] Waiting for logs. To exit press CTRL+C')
 
 
-def send_email(toEmailAddress, type, context):
+def test_mail(to_email, type, context):
 
-    debuglevel = 0
-
-    # Create the container (outer) email message.
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = 'No elo, %s!' %(context['username'])
-    msg['From'] = 'Nakurwiacz kodu <test@ascetic.pl>'
-    msg['To'] = toEmailAddress
-
-    with open("email/templates/register.html", "r") as myfile:
-        html = myfile.read()
-
-    print os.path.join(os.path.dirname(__file__))
-    #env = Environment(loader=PackageLoader('email', 'templates'))
     env = Environment(loader=FileSystemLoader(os.path.dirname(os.path.realpath(__file__)) + '/templates'))
-
     template = env.get_template('register.html')
     rendered = template.render(username=context['username']).encode('utf-8')
-    body = MIMEText(rendered, 'html', 'utf-8')
 
-    msg.attach(body)
+    email = Email(to_email, 'Subject', rendered)
+    email_sender = EmailSender(env)
 
-    smtp = SMTP()
-    smtp.set_debuglevel(debuglevel)
-    smtp.connect('', 587)
-    smtp.login('', '')
-
-    smtp.sendmail(msg['From'], msg['To'], msg.as_string())
-    smtp.quit()
-    myfile.close()
+    email_sender.send_email(email)
 
 
 def callback(ch, method, properties, body):
@@ -58,9 +37,7 @@ def callback(ch, method, properties, body):
     type = json_data['type']
     context = json_data['context']
 
-    print email, type, context
-
-    send_email(email, type, context)
+    test_mail(email, type, context)
 
 
 channel.basic_consume(callback, queue=queue_name, no_ack=True)

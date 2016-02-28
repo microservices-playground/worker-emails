@@ -1,0 +1,5 @@
+mailer:
+  server: servername
+  login: login
+  password: password
+  port: port
